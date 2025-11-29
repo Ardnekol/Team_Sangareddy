@@ -1,14 +1,10 @@
 """
 Solution generator module using LLM to rank and generate solutions.
-Supports OpenAI, Groq, and Google Gemini providers.
+Supports both OpenAI and Groq providers.
 """
 
 import os
 from typing import List, Dict, Tuple, Any
-
-# Hardcoded API Keys for deployment
-HARDCODED_GROQ_API_KEY = "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"
-HARDCODED_GEMINI_API_KEY = "AIzaSyBQLSPmbi7L0xwFUKduDC_Od1_244364yM"
 
 try:
     from typing import Literal
@@ -24,11 +20,8 @@ try:
 except ImportError:
     GROQ_AVAILABLE = False
 
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
+# Hardcoded Groq API key (for convenience)
+DEFAULT_GROQ_API_KEY = "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"
 
 
 class SolutionGenerator:
@@ -36,7 +29,7 @@ class SolutionGenerator:
     
     def __init__(
         self, 
-        provider: Literal["openai", "groq", "gemini"] = "openai",
+        provider: Literal["openai", "groq"] = "openai",
         api_key: str = None, 
         model: str = None
     ):
@@ -44,7 +37,7 @@ class SolutionGenerator:
         Initialize the solution generator.
         
         Args:
-            provider: LLM provider ("openai", "groq", or "gemini")
+            provider: LLM provider ("openai" or "groq")
             api_key: API key (if None, reads from environment variables)
             model: Model name to use (defaults based on provider)
         """
@@ -56,8 +49,6 @@ class SolutionGenerator:
                 # Updated: llama-3.1-70b-versatile was decommissioned
                 # Using llama-3.3-70b-versatile as replacement, or llama-3.1-8b-instant for faster responses
                 model = "llama-3.3-70b-versatile"
-            elif self.provider == "gemini":
-                model = "gemini-2.0-flash"
             else:
                 model = "gpt-3.5-turbo"
         
@@ -65,7 +56,8 @@ class SolutionGenerator:
         
         # Get API key based on provider
         if self.provider == "groq":
-            api_key = api_key or os.getenv('GROQ_API_KEY') or HARDCODED_GROQ_API_KEY
+            # Priority: parameter > environment variable > hardcoded default
+            api_key = api_key or os.getenv('GROQ_API_KEY') or DEFAULT_GROQ_API_KEY
             if not api_key:
                 raise ValueError(
                     "Groq API key not provided. Set GROQ_API_KEY environment variable "
@@ -76,19 +68,6 @@ class SolutionGenerator:
                     "Groq package not installed. Install it with: pip install groq"
                 )
             self.client = Groq(api_key=api_key)
-        elif self.provider == "gemini":
-            api_key = api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or HARDCODED_GEMINI_API_KEY
-            if not api_key:
-                raise ValueError(
-                    "Gemini API key not provided. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable "
-                    "or pass api_key parameter."
-                )
-            if not GEMINI_AVAILABLE:
-                raise ImportError(
-                    "Google Generative AI package not installed. Install it with: pip install google-generativeai"
-                )
-            genai.configure(api_key=api_key)
-            self.client = genai.GenerativeModel(self.model)
         else:  # OpenAI
             api_key = api_key or os.getenv('OPENAI_API_KEY')
             if not api_key:
@@ -125,34 +104,19 @@ class SolutionGenerator:
         # Use query hash to add slight variation to temperature (0.95 to 1.0)
         temp_variation = 0.95 + (query_hash % 6) * 0.01  # 0.95 to 1.0
         
-        system_prompt = "You are a telecom support expert assistant. You MUST provide 3 solutions that represent DIFFERENT solution types: (1) Immediate action/quick fix, (2) Investigation/diagnostic approach, (3) Alternative strategy/escalation. Never provide 3 solutions of the same type - they must be fundamentally different approaches. CRITICAL: Each query is UNIQUE - generate solutions SPECIFICALLY tailored to the exact problem described, not generic template responses. Calculate suitability percentages based on actual solution quality and match to THIS SPECIFIC problem - use varied percentages (not always 95%, 80%, 65%). Percentages should reflect real confidence levels for THIS PARTICULAR case. Different queries should produce DIFFERENT solutions and percentages."
-        
-        # Call LLM based on provider
-        if self.provider == "gemini":
-            # Gemini uses a different API
-            full_prompt = f"{system_prompt}\n\n{prompt}"
-            response = self.client.generate_content(
-                full_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=temp_variation,
-                    max_output_tokens=1500
-                )
-            )
-            content = response.text
-        else:
-            # OpenAI and Groq use the same interface
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=temp_variation,
-                max_tokens=1500
-            )
-            content = response.choices[0].message.content
+        # Call LLM (both OpenAI and Groq use the same interface)
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are a telecom support expert assistant. You MUST provide 3 solutions that represent DIFFERENT solution types: (1) Immediate action/quick fix, (2) Investigation/diagnostic approach, (3) Alternative strategy/escalation. Never provide 3 solutions of the same type - they must be fundamentally different approaches. CRITICAL: Each query is UNIQUE - generate solutions SPECIFICALLY tailored to the exact problem described, not generic template responses. Calculate suitability percentages based on actual solution quality and match to THIS SPECIFIC problem - use varied percentages (not always 95%, 80%, 65%). Percentages should reflect real confidence levels for THIS PARTICULAR case. Different queries should produce DIFFERENT solutions and percentages."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temp_variation,  # Query-specific temperature for variation
+            max_tokens=1500  # Increased to allow more detailed solutions
+        )
         
         # Parse response
+        content = response.choices[0].message.content
         solutions = self._parse_solutions(content)
         
         # Post-process to ensure diversity
@@ -211,21 +175,12 @@ CRITICAL REQUIREMENTS FOR DIVERSITY:
 - Solution 3: Should be an ALTERNATIVE STRATEGY (escalation, upgrade, workaround, different service, or long-term fix)
 
 PERCENTAGE CALCULATION RULES:
-- Calculate percentages based on ACTUAL solution quality and similarity to resolved tickets for THIS SPECIFIC ISSUE
-- Solution 1 (best match): Vary between 85-98% based on how well it matches THIS SPECIFIC ISSUE
-  * If it's a perfect match: 94-98%
-  * If it's a very good match: 88-93%
-  * If it's a good match: 85-87%
-- Solution 2 (good match): Vary between 70-85% based on confidence for THIS SPECIFIC PROBLEM
-  * If very confident: 82-85%
-  * If moderately confident: 75-81%
-  * If less confident: 70-74%
-- Solution 3 (alternative): Vary between 55-75% based on relevance to THIS PARTICULAR CASE
-  * If highly relevant: 70-75%
-  * If moderately relevant: 63-69%
-  * If less relevant: 55-62%
-- DO NOT use the same percentages for every query - calculate based on actual match quality
-- DO NOT default to 92% or any fixed percentage - vary based on real assessment
+- Calculate percentages based on actual solution quality and similarity to resolved tickets
+- Solution 1 (best match): Typically 85-98%, but vary based on how well it matches THIS SPECIFIC ISSUE
+- Solution 2 (good match): Typically 70-85%, but vary based on confidence for THIS SPECIFIC PROBLEM
+- Solution 3 (alternative): Typically 55-75%, but vary based on relevance to THIS PARTICULAR CASE
+- DO NOT use the same percentages (95%, 80%, 65%) for every query
+- Percentages should reflect real confidence: if a solution is a perfect match, use 92-98%; if less certain, use 75-85%
 - IMPORTANT: Different queries should have DIFFERENT percentage distributions based on how well solutions match each unique problem
 
 QUERY-SPECIFIC REQUIREMENTS:
@@ -260,13 +215,7 @@ IMPORTANT: Calculate suitability percentages based on how well each solution mat
 - How similar the solution is to successful resolutions
 - The confidence level in the solution's effectiveness
 
-Percentages should be realistic and varied based on actual solution quality. Examples of good variation:
-- For a perfect match: 96%, 84%, 68%
-- For a very good match: 91%, 79%, 64%
-- For a good match: 87%, 76%, 61%
-- For a moderate match: 89%, 73%, 58%
-
-DO NOT use the same percentages (like 92%, 80%, 65%) for every query - calculate based on actual match quality.
+Percentages should be realistic and varied (e.g., 92%, 78%, 63% or 88%, 75%, 60% - NOT always 95%, 80%, 65%).
 
 Please provide exactly 3 DISTINCT solutions representing DIFFERENT solution types in the following JSON format:
 {{
@@ -362,22 +311,16 @@ Return only valid JSON, no additional text."""
         for i, sol in enumerate(solutions[:3], 1):
             sol['rank'] = i
             if 'suitability_percentage' not in sol:
-                # Use varied default percentages with more randomness
-                import random
-                # Generate varied defaults based on rank, with randomness
-                if i == 1:
-                    sol['suitability_percentage'] = random.randint(87, 97)  # Top solution: 87-97%
-                elif i == 2:
-                    sol['suitability_percentage'] = random.randint(72, 84)  # Second: 72-84%
-                else:
-                    sol['suitability_percentage'] = random.randint(58, 72)  # Third: 58-72%
+                # Use more varied default percentages instead of fixed 95, 80, 65
+                base_percentages = [92, 77, 62]  # Slightly varied defaults
+                sol['suitability_percentage'] = base_percentages[i-1] if i <= 3 else max(0, 100 - (i-1) * 15)
             else:
-                # Add small random variation to prevent exact same percentages across queries
+                # Add small random variation to prevent exact same percentages
                 current_pct = sol['suitability_percentage']
-                # Only adjust if it's one of the common fixed values (92, 95, 80, 65, etc.)
-                if current_pct in [92, 95, 80, 65, 90, 85, 75, 70]:
+                # Only adjust if it's one of the common fixed values
+                if current_pct in [95, 80, 65]:
                     import random
-                    variation = random.randint(-4, 4)
+                    variation = random.randint(-3, 3)
                     sol['suitability_percentage'] = max(50, min(100, current_pct + variation))
             if 'reasoning' not in sol:
                 sol['reasoning'] = f'Ranked {i} based on similarity to resolved tickets'

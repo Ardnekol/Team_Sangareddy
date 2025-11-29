@@ -35,16 +35,16 @@ pip install -r requirements.txt
 - PyTorch and dependencies
 - Other required packages
 
-### 4. Set Environment Variables
+### 4. Set Environment Variables (Optional)
+
+**Note**: Groq API key is hardcoded, so you don't need to set it. However, if you want to use OpenAI:
 
 1. Click on the "Secrets" tab (lock icon) in the left sidebar
-2. Add a new secret (choose one):
-   - **Option A (Recommended)**: 
-     - **Key**: `GROQ_API_KEY`
-     - **Value**: Your Groq API key (get one at https://console.groq.com)
-   - **Option B**: 
-     - **Key**: `OPENAI_API_KEY`
-     - **Value**: Your OpenAI API key
+2. Add a new secret:
+   - **Key**: `OPENAI_API_KEY`
+   - **Value**: Your OpenAI API key
+
+**Groq is pre-configured** - no API key setup needed!
 
 ### 5. Build the Vector Index (First Time Only)
 

@@ -34,8 +34,7 @@ This system helps telecom support teams by:
          ▼
 ┌─────────────────┐
 │  LLM Generator  │
-│(Groq/OpenAI/    │
-│    Gemini)      │
+│ (OpenAI/Groq)   │
 └────────┬────────┘
          │
          ▼
@@ -58,10 +57,10 @@ This system helps telecom support teams by:
    - Supports index persistence and loading
 
 3. **Solution Generator** (`solution_generator.py`)
-   - Supports OpenAI GPT, Groq LLM, and Google Gemini models
+   - Supports both OpenAI GPT and Groq LLM models
    - Generates ranked solutions with suitability percentages
    - Provides reasoning for each solution
-   - Groq offers faster inference, OpenAI offers higher quality, Gemini offers Google's AI
+   - Groq offers faster inference, OpenAI offers higher quality
 
 4. **Streamlit App** (`app.py`)
    - User-friendly web interface
@@ -71,18 +70,17 @@ This system helps telecom support teams by:
 ## 📋 Prerequisites
 
 - Python 3.8+
-- API key for LLM provider (choose one):
+- API key for LLM provider:
   - **Groq API key** (recommended for speed) - Get one at https://console.groq.com
   - **OpenAI API key** (for higher quality) - Get one at https://platform.openai.com/api-keys
-  - **Gemini API key** (Google AI) - Get one at https://aistudio.google.com/apikey
 - 2GB+ RAM (for embedding model and FAISS index)
 
-##  Setup Instructions
+## 🚀 Setup Instructions
 
 ### 1. Clone/Download the Repository
 
 ```bash
-cd HCL
+cd final_hack
 ```
 
 ### 2. Install Dependencies
@@ -93,31 +91,34 @@ pip install -r requirements.txt
 
 **Note:** The first run will download the sentence transformer model (~80MB), which may take a few minutes.
 
-### 3. Set API Key (Required - Environment Variable)
+### 3. Set API Key
 
-⚠️ **Important:** API keys are read from environment variables only (not shown in UI for security).
+You can use either **Groq** (faster, free tier available) or **OpenAI** (higher quality).
 
-Choose one provider and set the environment variable:
-
+**Option A: Environment Variable**
 ```bash
-# For Groq (recommended - fast & free)
+# For Groq (recommended)
 export GROQ_API_KEY="your-groq-api-key-here"
 
 # OR for OpenAI
 export OPENAI_API_KEY="your-openai-api-key-here"
-
-# OR for Gemini (Google AI)
-export GEMINI_API_KEY="your-gemini-api-key-here"
 ```
 
-**Get API Keys:**
-| Provider | Free Tier | Get API Key |
-|----------|-----------|-------------|
-| **Groq** | ✅ Yes | https://console.groq.com |
-| **Gemini** | ✅ Yes | https://aistudio.google.com/apikey |
-| **OpenAI** | ❌ Paid | https://platform.openai.com/api-keys |
+**Option B: Enter in Streamlit UI**
+- Select your provider (Groq or OpenAI) from the dropdown
+- Enter your API key in the sidebar
 
-### 4. Run the Application
+### 4. Initialize the System
+
+The first time you run the app, it will:
+1. Load the ticket data from `telecom_tickets_10000_12cats.json`
+2. Generate embeddings for all tickets
+3. Build the FAISS index
+4. Save the index for future use
+
+This process takes approximately 20-30 minutes for 10,000 tickets.
+
+### 5. Run the Application
 
 ```bash
 streamlit run app.py
@@ -125,27 +126,14 @@ streamlit run app.py
 
 The app will open in your default browser at `http://localhost:8501`
 
-### 5. Initialize the System
+## 💻 Usage
 
-Click **"🔄 Initialize System"** in the sidebar. The first time, it will:
-1. Load the ticket data from `telecom_tickets_10000_12cats.json`
-2. Generate embeddings for all tickets
-3. Build the FAISS index
-4. Save the index for future use
-
-This process takes approximately 5-10 minutes for 10,000 tickets.
-
-The app will open in your default browser at `http://localhost:8501`
-
-## 📖 Usage
-
-1. **Set API Key**: Set your API key as environment variable before running (see Setup Instructions)
-2. **Run App**: Run `streamlit run app.py`
-3. **Initialize System**: Click "🔄 Initialize System" in the sidebar (first time only)
-4. **Select Provider**: Choose Groq, OpenAI, or Gemini from the dropdown
-5. **Enter Ticket**: Type or paste the customer issue description
-6. **Analyze**: Click "🔍 Analyze Ticket"
-7. **Review Results**: 
+1. **Initialize System**: Click "🔄 Initialize System" in the sidebar (first time only)
+2. **Select Provider**: Choose Groq or OpenAI from the dropdown
+3. **Enter API Key**: Input your API key in the sidebar
+4. **Enter Ticket**: Type or paste the customer issue description
+5. **Analyze**: Click "🔍 Analyze Ticket"
+6. **Review Results**: 
    - View similar resolved tickets (reference)
    - Review top 3 ranked solutions with suitability percentages
    - Read reasoning for each solution
@@ -189,7 +177,7 @@ Each ticket contains:
 
 3. **Set environment variables**
    - Go to Secrets tab
-   - Add one of: `GROQ_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`
+   - Add `OPENAI_API_KEY` with your API key
 
 4. **Run the app**
    ```bash
@@ -203,7 +191,7 @@ Each ticket contains:
 
 1. Push code to GitHub
 2. Connect repository to [Streamlit Cloud](https://streamlit.io/cloud)
-3. Set your API key (`GROQ_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`) in secrets
+3. Set `OPENAI_API_KEY` in secrets
 4. Deploy!
 
 ### Alternative: Deploy on AWS/Azure/GCP
@@ -214,7 +202,7 @@ Each ticket contains:
 4. Set up SSL certificate
 5. Configure firewall rules
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 ### Changing the Embedding Model
 
@@ -236,25 +224,20 @@ generator = SolutionGenerator(provider="groq", model="llama-3.3-70b-versatile")
 
 # For OpenAI (default: gpt-3.5-turbo)
 generator = SolutionGenerator(provider="openai", model="gpt-4")
-
-# For Gemini (default: gemini-2.0-flash)
-generator = SolutionGenerator(provider="gemini", model="gemini-2.0-flash")
 ```
 
 **Available Groq Models:**
-- `llama-3.3-70b-versatile` (default, best quality)
+- `llama-3.3-70b-versatile` (default, best quality - updated from deprecated llama-3.1-70b-versatile)
 - `llama-3.1-8b-instant` (faster, good quality)
 - `mixtral-8x7b-32768` (long context)
+- `gemma2-9b-it` (alternative option)
+
+**Note:** `llama-3.1-70b-versatile` has been decommissioned by Groq. The system now uses `llama-3.3-70b-versatile` by default.
 
 **Available OpenAI Models:**
 - `gpt-3.5-turbo` (default, cost-effective)
 - `gpt-4` (higher quality, more expensive)
 - `gpt-4-turbo` (best quality)
-
-**Available Gemini Models:**
-- `gemini-2.0-flash` (default, fast and recommended)
-- `gemini-1.5-pro-latest` (higher quality)
-- `gemini-1.5-flash-latest` (fast alternative)
 
 ### Adjusting Similarity Search
 
@@ -362,9 +345,9 @@ chmod +x fix_import_error.sh
 **Issue**: App is slow on first run
 - **Solution**: First run builds the vector index (5-10 minutes). Subsequent runs are fast as the index is cached.
 
-## 🚀 Future Enhancements
+## 🔮 Future Enhancements
 
-- [ ] Support for more LLM providers (Anthropic, Cohere, etc.)
+- [ ] Support for multiple LLM providers (Anthropic, Cohere, etc.)
 - [ ] Fine-tuned embedding model on telecom domain data
 - [ ] Multi-language support
 - [ ] Solution confidence scoring
@@ -372,7 +355,7 @@ chmod +x fix_import_error.sh
 - [ ] Analytics dashboard for solution effectiveness
 - [ ] Feedback loop to improve recommendations
 
-## 📄 License
+## 📝 License
 
 This project is for educational/demonstration purposes.
 
@@ -395,8 +378,7 @@ For issues or questions, please check:
 
 ---
 
-**Note**: This system requires an API key (Groq, OpenAI, or Gemini) for solution generation. 
+**Note**: This system requires an API key (Groq or OpenAI) for solution generation. 
 - **Groq**: Offers free tier with generous limits, very fast inference
-- **Gemini**: Offers free tier, Google's AI models
 - **OpenAI**: Pay-per-use, monitor usage to avoid unexpected costs
 

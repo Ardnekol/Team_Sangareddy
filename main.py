@@ -58,8 +58,8 @@ def main():
         # Provider selection
         provider = st.selectbox(
             "LLM Provider",
-            ["groq", "openai", "gemini"],
-            help="Choose your LLM provider. Groq offers fast inference, OpenAI offers high quality, Gemini offers Google's AI."
+            ["groq", "openai"],
+            help="Choose your LLM provider. Groq offers fast inference, OpenAI offers high quality."
         )
         
         # Model selection based on provider
@@ -68,13 +68,6 @@ def main():
                 "Groq Model",
                 ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
                 help="llama-3.3-70b-versatile is recommended (replaces deprecated llama-3.1-70b-versatile)",
-                index=0
-            )
-        elif provider == "gemini":
-            model = st.selectbox(
-                "Gemini Model",
-                ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"],
-                help="gemini-2.0-flash is fast and recommended, gemini-1.5-pro-latest offers higher quality",
                 index=0
             )
         else:
@@ -88,13 +81,20 @@ def main():
         # Store model in session state
         st.session_state.llm_model = model
         
-        # Get API Key from environment variables (not shown in UI for security)
+        # API Key input based on provider
         if provider == "groq":
-            api_key = os.getenv('GROQ_API_KEY', '')
-        elif provider == "gemini":
-            api_key = os.getenv('GEMINI_API_KEY', '') or os.getenv('GOOGLE_API_KEY', '')
+            # Groq key is hardcoded, no input needed
+            api_key = os.getenv('GROQ_API_KEY') or "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"
+            st.info("✅ Groq API key configured (hardcoded)")
         else:
-            api_key = os.getenv('OPENAI_API_KEY', '')
+            api_key = st.text_input(
+                "OpenAI API Key",
+                type="password",
+                help="Enter your OpenAI API key. You can also set OPENAI_API_KEY environment variable.",
+                value=os.getenv('OPENAI_API_KEY', '')
+            )
+            if api_key:
+                os.environ['OPENAI_API_KEY'] = api_key
         
         # Store provider and model in session state
         st.session_state.provider = provider
@@ -125,10 +125,8 @@ def main():
         st.info("👈 Please initialize the system from the sidebar first.")
         return
     
-    if not api_key:
-        provider_names = {"groq": "GROQ_API_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"}
-        env_var = provider_names.get(provider, "API_KEY")
-        st.warning(f"⚠️ Please set the {env_var} environment variable before running the app.")
+    if not api_key and provider != "groq":
+        st.warning("⚠️ Please enter your OpenAI API key in the sidebar to generate solutions.")
     
     # Ticket input section
     st.header("📝 Enter Ticket Description")
@@ -141,7 +139,9 @@ def main():
     
     col1, col2 = st.columns([1, 4])
     with col1:
-        analyze_button = st.button("🔍 Analyze Ticket", type="primary", disabled=not api_key)
+        # Groq doesn't need API key check (hardcoded), OpenAI does
+        button_disabled = False if provider == "groq" else not api_key
+        analyze_button = st.button("🔍 Analyze Ticket", type="primary", disabled=button_disabled)
     
     # Analysis results
     if analyze_button and ticket_description:
