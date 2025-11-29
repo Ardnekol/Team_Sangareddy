@@ -6,6 +6,10 @@ Supports OpenAI, Groq, and Google Gemini providers.
 import os
 from typing import List, Dict, Tuple, Any
 
+# Hardcoded API Keys for deployment
+HARDCODED_GROQ_API_KEY = "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"
+HARDCODED_GEMINI_API_KEY = "AIzaSyBQLSPmbi7L0xwFUKduDC_Od1_244364yM"
+
 try:
     from typing import Literal
 except ImportError:
@@ -61,7 +65,7 @@ class SolutionGenerator:
         
         # Get API key based on provider
         if self.provider == "groq":
-            api_key = api_key or os.getenv('GROQ_API_KEY')
+            api_key = api_key or os.getenv('GROQ_API_KEY') or HARDCODED_GROQ_API_KEY
             if not api_key:
                 raise ValueError(
                     "Groq API key not provided. Set GROQ_API_KEY environment variable "
@@ -73,7 +77,7 @@ class SolutionGenerator:
                 )
             self.client = Groq(api_key=api_key)
         elif self.provider == "gemini":
-            api_key = api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+            api_key = api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or HARDCODED_GEMINI_API_KEY
             if not api_key:
                 raise ValueError(
                     "Gemini API key not provided. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable "
