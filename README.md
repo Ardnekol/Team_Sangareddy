@@ -18,6 +18,50 @@ Build a Generative-AI assistant that analyzes incoming telecom support tickets a
 4. Frontend UI (submit ticket, display solutions + evidence)
 5. Monitoring, evaluation and CI (metrics: P@3, MRR, latency, calibration)
 
+### Architecture diagram (Mermaid)
+
+The diagram below is written in Mermaid so GitHub will render it directly in the README. If your viewer doesn't render Mermaid, consider adding a PNG/SVG export alongside this README.
+
+```mermaid
+flowchart LR
+  subgraph Client
+    A[Frontend UI]\n(Submit ticket)
+  end
+
+  subgraph Backend
+    B[Backend API]\n(orchestration)
+    C[Embedding Service]\n(OpenAI)
+    E[FAISS Index]\n(dense retrieval)
+    R[Reranker]\n(optional)
+    L[LLM Synthesis]\n(Generate solutions)
+  end
+
+  subgraph Storage
+    DB[(Tickets & Chunks DB)]
+    V[(Vector store & metadata)]
+    BS[(Blob Storage - index snapshots)]
+    REDIS[(Redis cache)]
+    KV[(Azure Key Vault)]
+  end
+
+  A -->|POST /api/query| B
+  B --> C
+  C --> E
+  E --> R
+  R --> L
+  E --> V
+  B --> DB
+  B --> REDIS
+  B --> KV
+  V --> BS
+  L -->|top-3 + evidence| B
+  B --> A
+
+  classDef infra fill:#f3f4f6,stroke:#333,stroke-width:1px;
+  class Storage infra;
+
+```
+
 ## Data model (essentials)
 - Ticket: `{ ticket_id, original_text, category, resolved, resolution_text, created_at, metadata }`
 - Chunk/Vector metadata: `{ vector_id, ticket_id, chunk_id, chunk_text, token_count }`
@@ -93,7 +137,7 @@ docker run -e OPENAI_API_KEY="$OPENAI_API_KEY" -p 3000:3000 ticket-ai-backend:de
 - Run `tools/evaluate.py` to compute P@k, MRR, calibration, and produce `results_summary.csv`.
 - Add nightly GitHub Actions to run evaluation and fail if metrics drop below thresholds.
 
-## Next steps (recommended)
+## Next steps 
 1. Create a small evaluation set and run baseline retrieval+LLM to get initial metrics.
 2. Implement evidence UI and define annotation guideline for human verification.
 3. Add monitoring (App Insights) and CI evaluation job.
@@ -106,52 +150,9 @@ docker run -e OPENAI_API_KEY="$OPENAI_API_KEY" -p 3000:3000 ticket-ai-backend:de
 - `tools/generate_predictions.py` and `tools/evaluate.py` — evaluation harness
 - `design.md` — detailed design and prompt templates
 
-## Repository structure
 
-A compact, GitHub-friendly overview of the repository. Use this layout as the canonical structure when you create files.
 
-```
-HCL/
-├─ README.md            # Project overview (this file)
-├─ design.md            # Detailed design & prompt templates
-├─ data/
-│  ├─ raw/              # Original Kaggle dataset (do not commit large files)
-│  └─ processed/        # Cleaned chunks, metadata and index manifest
-├─ scripts/
-│  └─ index_dataset.js  # Ingestion, chunking and batch embedding CLI
-├─ backend/
-│  ├─ package.json
-│  ├─ Dockerfile
-│  └─ src/
-│     ├─ server.js
-│     ├─ faiss_service.js
-│     └─ indexer.js
-├─ frontend/
-│  ├─ package.json
-│  └─ src/              # React/Next.js UI
-├─ tools/
-│  ├─ generate_predictions.py
-│  └─ evaluate.py       # Evaluation harness and reporting
-├─ infra/
-│  ├─ azure/            # IaC templates (ARM/Bicep/Terraform)
-│  └─ docker/           # docker-compose for local dev
-└─ tests/
-   ├─ unit/
-   └─ integration/
-```
 
-Folder descriptions
-
-| Path | Purpose |
-|------|---------|
-| `data/raw/` | Store original datasets (keep off Git; use external storage for large files) |
-| `data/processed/` | Cleaned and chunked tickets, index manifests and small snapshots |
-| `scripts/` | One-off or CLI scripts (indexing pipeline, data prep) |
-| `backend/` | API server, FAISS wrapper and indexer; build Docker image here |
-| `frontend/` | User-facing web app (simple UI to submit tickets and view evidence) |
-| `tools/` | Evaluation tooling: generate predictions and compute metrics |
-| `infra/` | Infrastructure-as-code and local compose files |
-| `tests/` | Unit and integration tests |
 
 Practical notes
 
