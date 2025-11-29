@@ -1,6 +1,5 @@
 # GenAI-Powered Ticket Analysis for Telecom
 
-
 ## Objective
 Build a Generative-AI assistant that analyzes incoming telecom support tickets and returns the top-3 recommended solutions with suitability percentages. The assistant should surface supporting resolved tickets as evidence, scale to large corpora using FAISS, use OpenAI for embeddings and generation, and be deployable to Azure.
 
@@ -25,15 +24,15 @@ The diagram below is written in Mermaid so GitHub will render it directly in the
 ```mermaid
 flowchart LR
   subgraph Client
-    A[Frontend UI]\n(Submit ticket)
+    A[Frontend UI - Submit ticket]
   end
 
   subgraph Backend
-    B[Backend API]\n(orchestration)
-    C[Embedding Service]\n(OpenAI)
-    E[FAISS Index]\n(dense retrieval)
-    R[Reranker]\n(optional)
-    L[LLM Synthesis]\n(Generate solutions)
+    B[Backend API - orchestration]
+    C[Embedding Service - OpenAI]
+    E[FAISS Index - dense retrieval]
+    R[Reranker - optional]
+    L[LLM Synthesis - Generate solutions]
   end
 
   subgraph Storage
@@ -65,6 +64,20 @@ flowchart LR
 ## Data model (essentials)
 - Ticket: `{ ticket_id, original_text, category, resolved, resolution_text, created_at, metadata }`
 - Chunk/Vector metadata: `{ vector_id, ticket_id, chunk_id, chunk_text, token_count }`
+
+## Sample dataset
+
+A small sample dataset is included in the repo for local testing and demos: `data/sample_tickets.json`.
+
+Example record fields:
+
+- `ticket_id` — integer
+- `category` — string (e.g., "network", "billing")
+- `customer_issue_description` — free-text description
+- `root_cause` — short diagnosis
+- `final_resolution` — resolution summary
+
+Use this file to prototype ingestion, chunking and indexing flows. To load it in a Node/Python script, parse the JSON at `data/sample_tickets.json` and follow your existing ingestion pipeline.
 
 ## Ingestion & Chunking
 - Clean and redact PII.
